@@ -1,0 +1,26 @@
+# Ignore Gradle project-specific cache directory
+.gradle/
+
+# Ignore Gradle build output directory
+build/
+
+# Ignore Kotlin plugin data
+.kotlin/
+
+# Compiled files
+*.class
+*.jar
+
+# Keep the Gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local config
+local.properties
+gpr.properties
+
+# IDE
+.idea/
+*.iml
+
+# macOS
+.DS_Store

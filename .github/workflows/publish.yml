@@ -1,0 +1,57 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+      - name: Publish to GitHub Packages
+        run: ./gradlew :lib:publish
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          CURRENT_TAG="${{ github.ref_name }}"
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 "$CURRENT_TAG^" 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # First release: show all files in lib/
+            echo "body<<EOF" >> $GITHUB_OUTPUT
+            echo "## Changed Files" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            git ls-tree -r --name-only HEAD lib/ docs/ CLAUDE.md README.md .github/workflows/ | grep -E '\.(kt|gradle|toml|md|yml)$' | sed 's/^/- `/' | sed 's/$/`/' >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            # Compare with previous tag
+            echo "body<<EOF" >> $GITHUB_OUTPUT
+            echo "## Changed Files" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            git diff --name-only "$PREVIOUS_TAG..$CURRENT_TAG" | sed 's/^/- `/' | sed 's/$/`/' >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.body }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
